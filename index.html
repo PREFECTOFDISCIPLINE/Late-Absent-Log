@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Late &amp; Absent Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="heading">
+      <input id="logTitle" class="title" value="Late &amp; Absent Log" aria-label="Report title (click to rename)">
+      <p id="subLine" class="sub"></p>
+    </div>
+    <div class="actions no-print">
+      <button type="button" id="btnPrint" class="btn primary">Print</button>
+      <button type="button" id="btnCsv" class="btn">Download</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel daybar no-print" aria-label="Choose day">
+      <label>Report date
+        <input id="reportDate" type="date" required>
+      </label>
+      <button type="button" id="prevDay" class="btn">Previous day</button>
+      <button type="button" id="nextDay" class="btn">Next day</button>
+      <button type="button" id="todayBtn" class="btn">Today</button>
+    </section>
+
+    <section class="stats" aria-label="Summary for this day">
+      <div class="stat late"><span id="nLate">0</span> Late</div>
+      <div class="stat absent"><span id="nAbsent">0</span> Absent</div>
+      <div class="stat"><span id="nTotal">0</span> Total</div>
+    </section>
+
+    <section class="panel no-print" aria-labelledby="addH">
+      <h2 id="addH">Add a record for <span id="addDate"></span></h2>
+      <form id="entryForm" class="grid">
+        <label>Name
+          <input id="fName" required placeholder="Full name" autocomplete="off">
+        </label>
+        <label>Grade / Section
+          <input id="fGroup" placeholder="Optional" autocomplete="off">
+        </label>
+        <fieldset class="seg">
+          <legend>Status</legend>
+          <input type="radio" name="status" id="sLate" value="Late" checked>
+          <label for="sLate">Late</label>
+          <input type="radio" name="status" id="sAbsent" value="Absent">
+          <label for="sAbsent">Absent</label>
+        </fieldset>
+        <label id="timeWrap">Time arrived
+          <input id="fTime" type="time">
+        </label>
+        <label class="wide">Reason / remarks
+          <input id="fReason" placeholder="e.g. Traffic, sick, excused" autocomplete="off">
+        </label>
+        <button class="btn primary add" type="submit">Add record</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Late comers <span id="cLate" class="count"></span></h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th class="num">#</th><th>Name</th><th>Grade / Section</th><th>Time in</th><th>Reason / remarks</th>
+            <th class="no-print"><span class="sr">Remove</span></th>
+          </tr></thead>
+          <tbody id="rowsLate"></tbody>
+        </table>
+      </div>
+      <p id="emptyLate" class="empty" hidden>No late comers recorded for this day.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Absents <span id="cAbsent" class="count"></span></h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th class="num">#</th><th>Name</th><th>Grade / Section</th><th>Reason / remarks</th>
+            <th class="no-print"><span class="sr">Remove</span></th>
+          </tr></thead>
+          <tbody id="rowsAbsent"></tbody>
+        </table>
+      </div>
+      <p id="emptyAbsent" class="empty" hidden>No absents recorded for this day.</p>
+    </section>
+
+    <section class="more no-print">
+      <button type="button" id="btnAll" class="btn">Download All (backup)</button>
+      <button type="button" id="btnClear" class="btn danger">Clear This Day </button>
+    </section>
+
+    <p class="signoff print-only">Prepared by: ______________________ &nbsp;&nbsp; Signature: ______________________</p>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
