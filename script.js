@@ -21,6 +21,8 @@
     { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const halfLabel = (r) => `Half-day${r.session ? ' (' + r.session + ')' : ''}`;
+  const reasonText = (r) => (r.half ? `[${halfLabel(r)}] ` : '') + r.reason;
   const fmtTime = (t) => {
     if (!t) return '';
     const [h, m] = t.split(':').map(Number);
@@ -46,12 +48,159 @@
   $('nextDay').addEventListener('click', () => shift(1));
   $('todayBtn').addEventListener('click', () => setDay(toISO(new Date())));
 
+  // Scroll-wheel time picker
+  const ITEM = 36;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const pad = (n) => String(n).padStart(2, '0');
+  const wheels = [
+    { el: $('wHour'), items: Array.from({ length: 12 }, (_, i) => String(i + 1)) },
+    { el: $('wMin'), items: Array.from({ length: 60 }, (_, i) => pad(i)) },
+    { el: $('wAp'), items: ['AM', 'PM'] }
+  ];
+  let noTime = false;
+  const idx = (w) => Math.max(0, Math.min(w.items.length - 1, Math.round(w.el.scrollTop / ITEM)));
+
+  function paint(w) {
+    const pos = w.el.scrollTop / ITEM;
+    w.opts.forEach((o, i) => {
+      const d = Math.min(Math.abs(i - pos), 3);
+      o.style.transform = `scale(${1 - 0.11 * d})`;
+      o.style.opacity = String(1 - 0.3 * d);
+    });
+  }
+  function updateValue() {
+    const h = idx(wheels[0]) + 1, m = idx(wheels[1]), pm = idx(wheels[2]);
+    $('fTime').value = noTime ? '' : `${pad((h % 12) + (pm ? 12 : 0))}:${pad(m)}`;
+    if (document.activeElement !== $('fTimeText')) $('fTimeText').value = fmtTime($('fTime').value);
+  }
+  function go(w, i, smooth) {
+    i = Math.max(0, Math.min(w.items.length - 1, i));
+    w.el.scrollTo({ top: i * ITEM, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+  }
+  function setTime(h24, m, smooth) {
+    go(wheels[0], ((h24 + 11) % 12), smooth);
+    go(wheels[1], m, smooth);
+    go(wheels[2], h24 >= 12 ? 1 : 0, smooth);
+    if (!smooth) { wheels.forEach(paint); updateValue(); }
+  }
+  function setNoTime(v) {
+    noTime = v;
+    $('wheels').classList.toggle('off', v);
+    $('tNone').setAttribute('aria-pressed', String(v));
+    updateValue();
+  }
+  function resetTime() {
+    const n = new Date();
+    setNoTime(false);
+    setTime(n.getHours(), n.getMinutes(), false);
+  }
+
+  wheels.forEach((w) => {
+    w.el.innerHTML = w.items.map((t) => `<div class="opt" role="option">${t}</div>`).join('');
+    w.opts = Array.from(w.el.children);
+    let raf = 0, drag = null, dragged = false;
+
+    w.el.addEventListener('scroll', () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; paint(w); updateValue(); });
+    }, { passive: true });
+
+    // Mouse drag (touch and trackpad already scroll natively)
+    w.el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      drag = { y: e.clientY, top: w.el.scrollTop };
+      dragged = false;
+      w.el.setPointerCapture(e.pointerId);
+      w.el.style.scrollSnapType = 'none';
+      w.el.style.cursor = 'grabbing';
+    });
+    w.el.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dy = e.clientY - drag.y;
+      if (Math.abs(dy) > 3) dragged = true;
+      w.el.scrollTop = drag.top - dy;
+    });
+    const endDrag = () => {
+      if (!drag) return;
+      drag = null;
+      w.el.style.scrollSnapType = '';
+      w.el.style.cursor = '';
+      go(w, idx(w), true);
+      setTimeout(() => { dragged = false; }, 0);
+    };
+    w.el.addEventListener('pointerup', endDrag);
+    w.el.addEventListener('pointercancel', endDrag);
+
+    // Click an item to jump to it
+    w.el.addEventListener('click', (e) => {
+      if (dragged) return;
+      const y = e.clientY - w.el.getBoundingClientRect().top + w.el.scrollTop;
+      go(w, Math.floor((y - ITEM) / ITEM), true);
+    });
+
+    // Keyboard
+    w.el.addEventListener('keydown', (e) => {
+      const step = { ArrowUp: -1, ArrowDown: 1, PageUp: -5, PageDown: 5 }[e.key];
+      if (!step) return;
+      e.preventDefault();
+      go(w, idx(w) + step, true);
+    });
+  });
+
+  // Touching any wheel switches "No time" off
+  ['pointerdown', 'wheel', 'keydown', 'touchstart'].forEach((t) =>
+    $('wheels').addEventListener(t, () => { if (noTime) setNoTime(false); }, { passive: true }));
+  $('tNow').addEventListener('click', () => {
+    const n = new Date();
+    setNoTime(false);
+    setTime(n.getHours(), n.getMinutes(), true);
+  });
+  $('tNone').addEventListener('click', () => setNoTime(!noTime));
+
+  // Typing a time: "8:15 AM", "815", "8.15p", "14:30" ...
+  function parseTime(str) {
+    const mt = str.trim().toLowerCase().replace(/\s+/g, '').match(/^(\d{1,2})(?:[:.]?(\d{2}))?(?:([ap])m?)?$/);
+    if (!mt) return null;
+    const h = +mt[1], min = mt[2] ? +mt[2] : 0, ap = mt[3];
+    if (min > 59) return null;
+    if (ap) return h >= 1 && h <= 12 ? { h24: (h % 12) + (ap === 'p' ? 12 : 0), m: min } : null;
+    if (h > 23) return null;
+    if (h === 0 || h > 12) return { h24: h, m: min };
+    return { h24: (h % 12) + (idx(wheels[2]) ? 12 : 0), m: min };   // keep the current AM/PM
+  }
+  const tt = $('fTimeText');
+  function commitTyped() {
+    if (!tt.value.trim()) { setNoTime(true); tt.removeAttribute('aria-invalid'); return true; }
+    const t = parseTime(tt.value);
+    if (!t) { tt.setAttribute('aria-invalid', 'true'); return false; }
+    setNoTime(false);
+    setTime(t.h24, t.m, false);
+    tt.value = fmtTime($('fTime').value);
+    tt.removeAttribute('aria-invalid');
+    return true;
+  }
+  tt.addEventListener('input', () => {
+    tt.removeAttribute('aria-invalid');
+    const t = parseTime(tt.value);
+    if (t) { setNoTime(false); setTime(t.h24, t.m, false); }   // wheels follow while typing
+  });
+  tt.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();               // Enter confirms the time, it does not add the record
+    commitTyped();
+  });
+  tt.addEventListener('blur', () => {
+    if (!commitTyped()) { tt.removeAttribute('aria-invalid'); tt.value = fmtTime($('fTime').value); }
+  });
+
   // Form
   const syncTime = () => {
     const late = $('sLate').checked;
     $('timeWrap').hidden = !late;
-    if (!late) $('fTime').value = '';
+    $('halfWrap').hidden = late;
+    if (late) resetTime(); else $('fTime').value = '';
   };
+  $('fHalf').addEventListener('change', (e) => { $('fSession').disabled = !e.target.checked; });
   document.querySelectorAll('input[name="status"]').forEach((r) => r.addEventListener('change', syncTime));
   syncTime();
 
@@ -65,12 +214,16 @@
       date: day,
       status,
       time: status === 'Late' ? $('fTime').value : '',
+      half: status === 'Absent' && $('fHalf').checked,
+      session: status === 'Absent' && $('fHalf').checked ? $('fSession').value : '',
       reason: $('fReason').value.trim()
     });
     write(KEY, records);
     $('fName').value = '';
     $('fReason').value = '';
-    $('fTime').value = '';
+    $('fHalf').checked = false;
+    $('fSession').disabled = true;
+    syncTime();
     $('fName').focus();
     render();
   });
@@ -91,12 +244,13 @@
       <td>${fmtTime(r.time)}</td><td>${esc(r.reason)}</td>${delBtn(r)}</tr>`).join('');
     $('rowsAbsent').innerHTML = absent.map((r, i) => `
       <tr><td class="num">${i + 1}</td><td>${esc(r.name)}</td><td>${esc(r.group)}</td>
-      <td>${esc(r.reason)}</td>${delBtn(r)}</tr>`).join('');
+      <td>${r.half ? `<span class="tag half">${esc(halfLabel(r))}</span>` : ''}${esc(r.reason)}</td>${delBtn(r)}</tr>`).join('');
 
     $('emptyLate').hidden = late.length > 0;
     $('emptyAbsent').hidden = absent.length > 0;
     $('cLate').textContent = `(${late.length})`;
-    $('cAbsent').textContent = `(${absent.length})`;
+    const halves = absent.filter((r) => r.half).length;
+    $('cAbsent').textContent = `(${absent.length}${halves ? `, including ${halves} half-day` : ''})`;
     $('nLate').textContent = late.length;
     $('nAbsent').textContent = absent.length;
     $('nTotal').textContent = today.length;
@@ -120,7 +274,7 @@
     if (!list.length) { alert('There are no records to download.'); return; }
     const cell = (v) => `"${String(v).replace(/"/g, '""')}"`;
     const rows = [['Date', 'Name', 'Class/Department', 'Status', 'Time arrived', 'Reason/remarks']]
-      .concat(list.map((r) => [r.date, r.name, r.group, r.status, r.time, r.reason]));
+      .concat(list.map((r) => [r.date, r.name, r.group, r.status, r.time, reasonText(r)]));
     const csv = '\ufeff' + rows.map((r) => r.map(cell).join(',')).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
