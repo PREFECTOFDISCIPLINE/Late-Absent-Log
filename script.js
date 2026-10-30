@@ -58,6 +58,8 @@
     { el: $('wMin'), items: Array.from({ length: 60 }, (_, i) => pad(i)) },
     { el: $('wAp'), items: ['AM', 'PM'] }
   ];
+  const apBtn = $('apBtn');
+  let ap = 'AM', apManual = false;   // apManual: the person chose AM/PM themselves
   let userMoved = false;   // true only when the person touched the wheels
   const idx = (w) => Math.max(0, Math.min(w.items.length - 1, Math.round(w.el.scrollTop / ITEM)));
 
@@ -79,18 +81,34 @@
     go(wheels[2], h24 >= 12 ? 1 : 0, smooth);
     if (!smooth) wheels.forEach(paint);
   }
+  function setAp(v) {
+    ap = v;
+    apBtn.textContent = v;
+    apBtn.setAttribute('aria-label', `${v}. Press to switch between AM and PM`);
+  }
+  function refreshValidity() {
+    const d = tt.value.replace(/\D/g, '');
+    const bad = !$('timeWrap').hidden && d && !parseDigits(d);
+    tt.setCustomValidity(bad ? 'Enter a valid time, for example 815 for 8:15.' : '');
+  }
   function writeField(h24, m) {
     $('fTime').value = `${pad(h24)}:${pad(m)}`;
-    tt.value = fmtTime($('fTime').value);
+    tt.value = `${((h24 + 11) % 12) + 1}:${pad(m)}`;
+    setAp(h24 >= 12 ? 'PM' : 'AM');
     tt.removeAttribute('aria-invalid');
+    tt.setCustomValidity('');
   }
   function clearField() {
     $('fTime').value = '';
     tt.value = '';
+    apManual = false;
+    setAp('AM');
     tt.removeAttribute('aria-invalid');
+    tt.setCustomValidity('');
   }
   function fromWheels() {
     const h = idx(wheels[0]) + 1, m = idx(wheels[1]), pm = idx(wheels[2]);
+    apManual = true;
     writeField((h % 12) + (pm ? 12 : 0), m);
   }
 
@@ -116,6 +134,7 @@
   $('tNow').addEventListener('click', () => {
     const n = new Date();
     userMoved = false;
+    apManual = false;
     writeField(n.getHours(), n.getMinutes());
     placeWheels(n.getHours(), n.getMinutes(), true);
   });
@@ -180,44 +199,67 @@
   ['pointerdown', 'wheel', 'keydown', 'touchstart'].forEach((t) =>
     $('wheels').addEventListener(t, () => { userMoved = true; }, { passive: true }));
 
-  // Typing: "8:15 AM", "815", "8.15p", "14:30" ...
-  // Without AM/PM we guess a school day: 7-11 = morning, 12 and 1-6 = afternoon.
-  function parseTime(str) {
-    const mt = str.trim().toLowerCase().replace(/\s+/g, '').match(/^(\d{1,2})(?:[:.]?(\d{2}))?(?:([ap])m?)?$/);
-    if (!mt) return null;
-    const h = +mt[1], min = mt[2] ? +mt[2] : 0, ap = mt[3];
-    if (min > 59) return null;
-    if (ap) return h >= 1 && h <= 12 ? { h24: (h % 12) + (ap === 'p' ? 12 : 0), m: min } : null;
-    if (h > 23) return null;
-    if (h === 0 || h > 12) return { h24: h, m: min };
-    return { h24: h >= 7 && h <= 11 ? h : (h % 12) + 12, m: min };
+  // Typing: numbers only. 8 = 8:00, 815 = 8:15, 1215 = 12:15. AM/PM has its own button.
+  // Until someone presses AM/PM we guess a school day: 7-11 = morning, 12 and 1-6 = afternoon.
+  const formatDigits = (d) => (d.length <= 2 ? d : d.length === 3 ? `${d[0]}:${d.slice(1)}` : `${d.slice(0, 2)}:${d.slice(2)}`);
+  function parseDigits(d) {
+    let h, m = 0;
+    if (d.length <= 2) h = +d;
+    else if (d.length === 3) { h = +d[0]; m = +d.slice(1); }
+    else if (d.length === 4) { h = +d.slice(0, 2); m = +d.slice(2); }
+    else return null;
+    return h >= 1 && h <= 12 && m <= 59 ? { h, m } : null;
+  }
+  function applyTyped(t) {
+    if (!apManual) setAp(t.h >= 7 && t.h <= 11 ? 'AM' : 'PM');
+    const h24 = (t.h % 12) + (ap === 'PM' ? 12 : 0);
+    $('fTime').value = `${pad(h24)}:${pad(t.m)}`;
+    if (!pop.hidden) placeWheels(h24, t.m, false);       // wheels follow while typing
   }
   function commitTyped() {
-    if (!tt.value.trim()) { clearField(); return true; }
-    const t = parseTime(tt.value);
-    if (!t) { tt.setAttribute('aria-invalid', 'true'); return false; }
-    writeField(t.h24, t.m);
-    if (!pop.hidden) placeWheels(t.h24, t.m, false);
+    const d = tt.value.replace(/\D/g, '');
+    if (!d) { clearField(); return true; }
+    const t = parseDigits(d);
+    if (!t) {
+      $('fTime').value = '';
+      tt.setAttribute('aria-invalid', 'true');
+      refreshValidity();
+      return false;
+    }
+    applyTyped(t);
+    tt.value = `${t.h}:${pad(t.m)}`;
+    tt.removeAttribute('aria-invalid');
+    refreshValidity();
     return true;
   }
+  tt.addEventListener('beforeinput', (e) => {           // letters and symbols never get in
+    if (e.inputType && e.inputType.startsWith('insert') && e.data && /\D/.test(e.data)) e.preventDefault();
+  });
   tt.addEventListener('input', () => {
     userMoved = false;
     tt.removeAttribute('aria-invalid');
-    const t = parseTime(tt.value);
-    if (t) {
-      $('fTime').value = `${pad(t.h24)}:${pad(t.m)}`;
-      if (!pop.hidden) placeWheels(t.h24, t.m, false);     // wheels follow while typing
-    } else if (!tt.value.trim()) {
-      $('fTime').value = '';
-    }
+    const d = tt.value.replace(/\D/g, '').slice(0, 4);  // also cleans pasted text
+    const f = formatDigits(d);
+    if (tt.value !== f) tt.value = f;
+    const t = parseDigits(d);
+    if (t) applyTyped(t);
+    else { $('fTime').value = ''; if (!d) apManual = false; }
+    refreshValidity();
   });
   tt.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();               // Enter confirms the time, it does not add the record
     commitTyped();
   });
-  tt.addEventListener('blur', () => {
-    if (!commitTyped()) { tt.removeAttribute('aria-invalid'); tt.value = fmtTime($('fTime').value); }
+  tt.addEventListener('blur', commitTyped);
+  apBtn.addEventListener('click', () => {
+    apManual = true;
+    setAp(ap === 'AM' ? 'PM' : 'AM');
+    const cur = $('fTime').value;
+    if (!cur) return;
+    const [h, m] = cur.split(':').map(Number), h24 = (h + 12) % 24;
+    $('fTime').value = `${pad(h24)}:${pad(m)}`;
+    if (!pop.hidden) placeWheels(h24, m, false);
   });
 
   // Form
@@ -226,6 +268,7 @@
     $('timeWrap').hidden = !late;
     $('halfWrap').hidden = late;
     if (!late) closePop();
+    refreshValidity();
   };
   $('fHalf').addEventListener('change', (e) => { $('fSession').disabled = !e.target.checked; });
   document.querySelectorAll('input[name="status"]').forEach((r) => r.addEventListener('change', syncTime));
