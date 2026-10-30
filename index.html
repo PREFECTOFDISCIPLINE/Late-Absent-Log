@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <header class="top">
@@ -56,8 +56,10 @@
         <div id="timeWrap" class="timebox">
           <label class="lbl" for="fTimeText">Time arrived</label>
           <div class="timefield">
-            <input id="fTimeText" class="timetext" type="text" autocomplete="off"
-                   placeholder="e.g. 8:15 AM" title="Examples: 8:15 AM, 815, 7:30, 14:30">
+            <input id="fTimeText" class="timetext" type="text" inputmode="numeric" maxlength="5"
+                   autocomplete="off" placeholder="e.g. 815" aria-label="Time arrived, numbers only"
+                   title="Numbers only. Type 815 for 8:15">
+            <button type="button" id="apBtn" class="apbtn" aria-label="AM. Press to switch between AM and PM">AM</button>
             <button type="button" id="clockBtn" class="clockbtn" aria-label="Choose time with the clock"
                     aria-haspopup="dialog" aria-expanded="false" aria-controls="timePop">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -128,6 +130,6 @@
 
     <p class="signoff print-only">Prepared by: ______________________ &nbsp;&nbsp; Signature: ______________________</p>
   </main>
-  <script src="script.js"></script>
+  <script src="script.js?v=3"></script>
 </body>
 </html>
