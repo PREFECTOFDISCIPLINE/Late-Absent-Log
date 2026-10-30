@@ -48,16 +48,17 @@
   $('nextDay').addEventListener('click', () => shift(1));
   $('todayBtn').addEventListener('click', () => setDay(toISO(new Date())));
 
-  // Scroll-wheel time picker
+  // Time arrived: type it, or press the clock icon and scroll the wheels
   const ITEM = 36;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const pad = (n) => String(n).padStart(2, '0');
+  const tt = $('fTimeText'), pop = $('timePop'), clockBtn = $('clockBtn');
   const wheels = [
     { el: $('wHour'), items: Array.from({ length: 12 }, (_, i) => String(i + 1)) },
     { el: $('wMin'), items: Array.from({ length: 60 }, (_, i) => pad(i)) },
     { el: $('wAp'), items: ['AM', 'PM'] }
   ];
-  let noTime = false;
+  let userMoved = false;   // true only when the person touched the wheels
   const idx = (w) => Math.max(0, Math.min(w.items.length - 1, Math.round(w.el.scrollTop / ITEM)));
 
   function paint(w) {
@@ -68,32 +69,62 @@
       o.style.opacity = String(1 - 0.3 * d);
     });
   }
-  function updateValue() {
-    const h = idx(wheels[0]) + 1, m = idx(wheels[1]), pm = idx(wheels[2]);
-    $('fTime').value = noTime ? '' : `${pad((h % 12) + (pm ? 12 : 0))}:${pad(m)}`;
-    if (document.activeElement !== $('fTimeText')) $('fTimeText').value = fmtTime($('fTime').value);
-  }
   function go(w, i, smooth) {
     i = Math.max(0, Math.min(w.items.length - 1, i));
     w.el.scrollTo({ top: i * ITEM, behavior: smooth && !reduce ? 'smooth' : 'auto' });
   }
-  function setTime(h24, m, smooth) {
-    go(wheels[0], ((h24 + 11) % 12), smooth);
+  function placeWheels(h24, m, smooth) {
+    go(wheels[0], (h24 + 11) % 12, smooth);
     go(wheels[1], m, smooth);
     go(wheels[2], h24 >= 12 ? 1 : 0, smooth);
-    if (!smooth) { wheels.forEach(paint); updateValue(); }
+    if (!smooth) wheels.forEach(paint);
   }
-  function setNoTime(v) {
-    noTime = v;
-    $('wheels').classList.toggle('off', v);
-    $('tNone').setAttribute('aria-pressed', String(v));
-    updateValue();
+  function writeField(h24, m) {
+    $('fTime').value = `${pad(h24)}:${pad(m)}`;
+    tt.value = fmtTime($('fTime').value);
+    tt.removeAttribute('aria-invalid');
   }
-  function resetTime() {
+  function clearField() {
+    $('fTime').value = '';
+    tt.value = '';
+    tt.removeAttribute('aria-invalid');
+  }
+  function fromWheels() {
+    const h = idx(wheels[0]) + 1, m = idx(wheels[1]), pm = idx(wheels[2]);
+    writeField((h % 12) + (pm ? 12 : 0), m);
+  }
+
+  function openPop() {
+    const cur = $('fTime').value;
     const n = new Date();
-    setNoTime(false);
-    setTime(n.getHours(), n.getMinutes(), false);
+    const [h, m] = cur ? cur.split(':').map(Number) : [n.getHours(), n.getMinutes()];
+    pop.hidden = false;                       // must be visible before the wheels can scroll
+    clockBtn.setAttribute('aria-expanded', 'true');
+    userMoved = false;
+    placeWheels(h, m, false);
   }
+  function closePop() {
+    if (pop.hidden) return;
+    if (userMoved) fromWheels();              // keep what they scrolled to, even if they only tapped
+    pop.hidden = true;
+    clockBtn.setAttribute('aria-expanded', 'false');
+    userMoved = false;
+  }
+  clockBtn.addEventListener('click', () => (pop.hidden ? openPop() : closePop()));
+  $('tDone').addEventListener('click', () => { closePop(); clockBtn.focus(); });
+  $('tClear').addEventListener('click', () => { userMoved = false; clearField(); });
+  $('tNow').addEventListener('click', () => {
+    const n = new Date();
+    userMoved = false;
+    writeField(n.getHours(), n.getMinutes());
+    placeWheels(n.getHours(), n.getMinutes(), true);
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (!pop.hidden && !e.target.closest('.timefield')) closePop();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !pop.hidden) { closePop(); clockBtn.focus(); }
+  });
 
   wheels.forEach((w) => {
     w.el.innerHTML = w.items.map((t) => `<div class="opt" role="option">${t}</div>`).join('');
@@ -102,7 +133,7 @@
 
     w.el.addEventListener('scroll', () => {
       if (raf) return;
-      raf = requestAnimationFrame(() => { raf = 0; paint(w); updateValue(); });
+      raf = requestAnimationFrame(() => { raf = 0; paint(w); if (userMoved) fromWheels(); });
     }, { passive: true });
 
     // Mouse drag (touch and trackpad already scroll natively)
@@ -146,18 +177,11 @@
       go(w, idx(w) + step, true);
     });
   });
-
-  // Touching any wheel switches "No time" off
   ['pointerdown', 'wheel', 'keydown', 'touchstart'].forEach((t) =>
-    $('wheels').addEventListener(t, () => { if (noTime) setNoTime(false); }, { passive: true }));
-  $('tNow').addEventListener('click', () => {
-    const n = new Date();
-    setNoTime(false);
-    setTime(n.getHours(), n.getMinutes(), true);
-  });
-  $('tNone').addEventListener('click', () => setNoTime(!noTime));
+    $('wheels').addEventListener(t, () => { userMoved = true; }, { passive: true }));
 
-  // Typing a time: "8:15 AM", "815", "8.15p", "14:30" ...
+  // Typing: "8:15 AM", "815", "8.15p", "14:30" ...
+  // Without AM/PM we guess a school day: 7-11 = morning, 12 and 1-6 = afternoon.
   function parseTime(str) {
     const mt = str.trim().toLowerCase().replace(/\s+/g, '').match(/^(\d{1,2})(?:[:.]?(\d{2}))?(?:([ap])m?)?$/);
     if (!mt) return null;
@@ -166,23 +190,26 @@
     if (ap) return h >= 1 && h <= 12 ? { h24: (h % 12) + (ap === 'p' ? 12 : 0), m: min } : null;
     if (h > 23) return null;
     if (h === 0 || h > 12) return { h24: h, m: min };
-    return { h24: (h % 12) + (idx(wheels[2]) ? 12 : 0), m: min };   // keep the current AM/PM
+    return { h24: h >= 7 && h <= 11 ? h : (h % 12) + 12, m: min };
   }
-  const tt = $('fTimeText');
   function commitTyped() {
-    if (!tt.value.trim()) { setNoTime(true); tt.removeAttribute('aria-invalid'); return true; }
+    if (!tt.value.trim()) { clearField(); return true; }
     const t = parseTime(tt.value);
     if (!t) { tt.setAttribute('aria-invalid', 'true'); return false; }
-    setNoTime(false);
-    setTime(t.h24, t.m, false);
-    tt.value = fmtTime($('fTime').value);
-    tt.removeAttribute('aria-invalid');
+    writeField(t.h24, t.m);
+    if (!pop.hidden) placeWheels(t.h24, t.m, false);
     return true;
   }
   tt.addEventListener('input', () => {
+    userMoved = false;
     tt.removeAttribute('aria-invalid');
     const t = parseTime(tt.value);
-    if (t) { setNoTime(false); setTime(t.h24, t.m, false); }   // wheels follow while typing
+    if (t) {
+      $('fTime').value = `${pad(t.h24)}:${pad(t.m)}`;
+      if (!pop.hidden) placeWheels(t.h24, t.m, false);     // wheels follow while typing
+    } else if (!tt.value.trim()) {
+      $('fTime').value = '';
+    }
   });
   tt.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
@@ -198,7 +225,7 @@
     const late = $('sLate').checked;
     $('timeWrap').hidden = !late;
     $('halfWrap').hidden = late;
-    if (late) resetTime(); else $('fTime').value = '';
+    if (!late) closePop();
   };
   $('fHalf').addEventListener('change', (e) => { $('fSession').disabled = !e.target.checked; });
   document.querySelectorAll('input[name="status"]').forEach((r) => r.addEventListener('change', syncTime));
@@ -223,6 +250,8 @@
     $('fReason').value = '';
     $('fHalf').checked = false;
     $('fSession').disabled = true;
+    clearField();
+    closePop();
     syncTime();
     $('fName').focus();
     render();
