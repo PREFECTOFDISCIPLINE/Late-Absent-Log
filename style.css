@@ -122,6 +122,53 @@ th { font-weight: 600; color: var(--muted); font-size: 0.9rem; border-bottom: 2p
 .empty { text-align: center; color: var(--muted); padding: 24px 0 8px; margin: 0; }
 .sr { position: absolute; left: -9999px; }
 
+/* Half-day absent */
+.halfbox { display: flex; flex-direction: column; gap: 6px; }
+.halfbox[hidden] { display: none; }
+.check { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 1rem; cursor: pointer; }
+.check input { width: auto; margin: 0; display: inline-block; accent-color: var(--accent); }
+.halfbox select:disabled { opacity: .5; }
+.tag.half {
+  background: transparent; color: var(--absent); border: 1.5px dashed var(--absent);
+  padding: 0 8px; font-size: 0.82rem; margin-right: 6px; white-space: nowrap;
+}
+
+/* Scroll-wheel time picker */
+.timebox { display: flex; flex-direction: column; gap: 6px; }
+.timebox[hidden] { display: none; }
+.lbl { font-weight: 600; font-size: 0.9rem; color: var(--muted); }
+.wheels {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: 4px;
+  height: 108px; background: var(--paper); border: 1.5px solid var(--rule);
+  border-radius: var(--radius); overflow: hidden; transition: opacity .25s;
+}
+.wheels.off { opacity: .45; }
+.wheel {
+  position: relative; z-index: 1; height: 108px; width: 62px; padding: 36px 0;
+  overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain;
+  scrollbar-width: none; touch-action: pan-y; cursor: grab; border-radius: 6px;
+  -webkit-mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent);
+  mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent);
+}
+.wheel::-webkit-scrollbar { display: none; }
+.opt {
+  height: 36px; line-height: 36px; text-align: center; scroll-snap-align: center;
+  font: 600 1.35rem "Bricolage Grotesque", system-ui, sans-serif;
+  will-change: transform, opacity;
+}
+.colon { z-index: 1; font: 800 1.4rem "Bricolage Grotesque", system-ui, sans-serif; }
+.band {
+  position: absolute; left: 6px; right: 6px; top: 36px; height: 36px; border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  pointer-events: none;
+}
+.timetext { margin-top: 0; text-align: center; font-weight: 600; }
+.timetext[aria-invalid="true"] { border-color: var(--absent); background: var(--absent-bg); }
+.tbtns { display: flex; gap: 6px; }
+.btn.small { padding: 4px 12px; font-size: 0.85rem; }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 @media (max-width: 700px) {
   .wide { grid-column: span 1; }
 }
