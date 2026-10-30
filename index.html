@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Late &amp; Absent Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -40,7 +43,7 @@
         <label>Name
           <input id="fName" required placeholder="Full name" autocomplete="off">
         </label>
-        <label>Class / Department
+        <label>Grade / Section
           <input id="fGroup" placeholder="Optional" autocomplete="off">
         </label>
         <fieldset class="seg">
@@ -51,20 +54,28 @@
           <label for="sAbsent">Absent</label>
         </fieldset>
         <div id="timeWrap" class="timebox">
-          <span class="lbl" id="timeLbl">Time arrived</span>
-          <div class="wheels" id="wheels" role="group" aria-labelledby="timeLbl">
-            <div class="wheel" id="wHour" tabindex="0" role="listbox" aria-label="Hour"></div>
-            <span class="colon" aria-hidden="true">:</span>
-            <div class="wheel" id="wMin" tabindex="0" role="listbox" aria-label="Minutes"></div>
-            <div class="wheel" id="wAp" tabindex="0" role="listbox" aria-label="AM or PM"></div>
-            <div class="band" aria-hidden="true"></div>
-          </div>
-          <input id="fTimeText" class="timetext" type="text" autocomplete="off"
-                 placeholder="or type: 8:15 AM" aria-label="Type the time arrived"
-                 title="Examples: 8:15 AM, 815, 8:15p, 14:30">
-          <div class="tbtns">
-            <button type="button" class="btn small" id="tNow">Now</button>
-            <button type="button" class="btn small" id="tNone" aria-pressed="false">No time</button>
+          <label class="lbl" for="fTimeText">Time arrived</label>
+          <div class="timefield">
+            <input id="fTimeText" class="timetext" type="text" autocomplete="off"
+                   placeholder="e.g. 8:15 AM" title="Examples: 8:15 AM, 815, 7:30, 14:30">
+            <button type="button" id="clockBtn" class="clockbtn" aria-label="Choose time with the clock"
+                    aria-haspopup="dialog" aria-expanded="false" aria-controls="timePop">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </button>
+            <div id="timePop" class="popover" role="dialog" aria-label="Choose time" hidden>
+              <div class="wheels" id="wheels" role="group" aria-label="Scroll to choose the time">
+                <div class="wheel" id="wHour" tabindex="0" role="listbox" aria-label="Hour"></div>
+                <span class="colon" aria-hidden="true">:</span>
+                <div class="wheel" id="wMin" tabindex="0" role="listbox" aria-label="Minutes"></div>
+                <div class="wheel" id="wAp" tabindex="0" role="listbox" aria-label="AM or PM"></div>
+                <div class="band" aria-hidden="true"></div>
+              </div>
+              <div class="tbtns">
+                <button type="button" class="btn small" id="tNow">Now</button>
+                <button type="button" class="btn small" id="tClear">Clear</button>
+                <button type="button" class="btn small primary" id="tDone">Done</button>
+              </div>
+            </div>
           </div>
           <input type="hidden" id="fTime">
         </div>
@@ -87,7 +98,7 @@
       <div class="tablewrap">
         <table>
           <thead><tr>
-            <th class="num">#</th><th>Name</th><th>Class / Dept</th><th>Time in</th><th>Reason / remarks</th>
+            <th class="num">#</th><th>Name</th><th>Grade / Section</th><th>Time in</th><th>Reason / remarks</th>
             <th class="no-print"><span class="sr">Remove</span></th>
           </tr></thead>
           <tbody id="rowsLate"></tbody>
@@ -101,7 +112,7 @@
       <div class="tablewrap">
         <table>
           <thead><tr>
-            <th class="num">#</th><th>Name</th><th>Class / Dept</th><th>Reason / remarks</th>
+            <th class="num">#</th><th>Name</th><th>Grade / Section</th><th>Reason / remarks</th>
             <th class="no-print"><span class="sr">Remove</span></th>
           </tr></thead>
           <tbody id="rowsAbsent"></tbody>
