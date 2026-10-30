@@ -4,9 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Late &amp; Absent Log</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,8 +13,8 @@
       <p id="subLine" class="sub"></p>
     </div>
     <div class="actions no-print">
-      <button type="button" id="btnPrint" class="btn primary">Print</button>
-      <button type="button" id="btnCsv" class="btn">Download</button>
+      <button type="button" id="btnPrint" class="btn primary">Print this day</button>
+      <button type="button" id="btnCsv" class="btn">Download this day</button>
     </div>
   </header>
 
@@ -43,7 +40,7 @@
         <label>Name
           <input id="fName" required placeholder="Full name" autocomplete="off">
         </label>
-        <label>Grade / Section
+        <label>Class / Department
           <input id="fGroup" placeholder="Optional" autocomplete="off">
         </label>
         <fieldset class="seg">
@@ -53,9 +50,31 @@
           <input type="radio" name="status" id="sAbsent" value="Absent">
           <label for="sAbsent">Absent</label>
         </fieldset>
-        <label id="timeWrap">Time arrived
-          <input id="fTime" type="time">
-        </label>
+        <div id="timeWrap" class="timebox">
+          <span class="lbl" id="timeLbl">Time arrived</span>
+          <div class="wheels" id="wheels" role="group" aria-labelledby="timeLbl">
+            <div class="wheel" id="wHour" tabindex="0" role="listbox" aria-label="Hour"></div>
+            <span class="colon" aria-hidden="true">:</span>
+            <div class="wheel" id="wMin" tabindex="0" role="listbox" aria-label="Minutes"></div>
+            <div class="wheel" id="wAp" tabindex="0" role="listbox" aria-label="AM or PM"></div>
+            <div class="band" aria-hidden="true"></div>
+          </div>
+          <input id="fTimeText" class="timetext" type="text" autocomplete="off"
+                 placeholder="or type: 8:15 AM" aria-label="Type the time arrived"
+                 title="Examples: 8:15 AM, 815, 8:15p, 14:30">
+          <div class="tbtns">
+            <button type="button" class="btn small" id="tNow">Now</button>
+            <button type="button" class="btn small" id="tNone" aria-pressed="false">No time</button>
+          </div>
+          <input type="hidden" id="fTime">
+        </div>
+        <div id="halfWrap" class="halfbox" hidden>
+          <label class="check"><input type="checkbox" id="fHalf"> Half-day absent</label>
+          <select id="fSession" aria-label="Which half of the day" disabled>
+            <option>Morning</option>
+            <option>Afternoon</option>
+          </select>
+        </div>
         <label class="wide">Reason / remarks
           <input id="fReason" placeholder="e.g. Traffic, sick, excused" autocomplete="off">
         </label>
@@ -68,7 +87,7 @@
       <div class="tablewrap">
         <table>
           <thead><tr>
-            <th class="num">#</th><th>Name</th><th>Grade / Section</th><th>Time in</th><th>Reason / remarks</th>
+            <th class="num">#</th><th>Name</th><th>Class / Dept</th><th>Time in</th><th>Reason / remarks</th>
             <th class="no-print"><span class="sr">Remove</span></th>
           </tr></thead>
           <tbody id="rowsLate"></tbody>
@@ -82,7 +101,7 @@
       <div class="tablewrap">
         <table>
           <thead><tr>
-            <th class="num">#</th><th>Name</th><th>Grade / Section</th><th>Reason / remarks</th>
+            <th class="num">#</th><th>Name</th><th>Class / Dept</th><th>Reason / remarks</th>
             <th class="no-print"><span class="sr">Remove</span></th>
           </tr></thead>
           <tbody id="rowsAbsent"></tbody>
@@ -92,8 +111,8 @@
     </section>
 
     <section class="more no-print">
-      <button type="button" id="btnAll" class="btn">Download All (backup)</button>
-      <button type="button" id="btnClear" class="btn danger">Clear This Day </button>
+      <button type="button" id="btnAll" class="btn">Download all days (backup)</button>
+      <button type="button" id="btnClear" class="btn danger">Clear this day</button>
     </section>
 
     <p class="signoff print-only">Prepared by: ______________________ &nbsp;&nbsp; Signature: ______________________</p>
